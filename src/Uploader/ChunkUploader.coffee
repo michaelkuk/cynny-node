@@ -12,9 +12,7 @@ module.exports = (Promise, request, FormData, fs)->
         _chunkSize: null
         _chunkIndex: null
 
-        _isParity: null
-
-        constructor: (params, isParity=false)->
+        constructor: (params)->
             @_storageUrl = params.storageUrl
 
             @_file = params.file
@@ -25,8 +23,6 @@ module.exports = (Promise, request, FormData, fs)->
 
             @_chunkSize = params.chunkSize
             @_chunkIndex = params.chunkIndex
-
-            @_isParity = isParity
 
 
         upload: ()->
