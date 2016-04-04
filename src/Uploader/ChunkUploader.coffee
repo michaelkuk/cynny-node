@@ -2,6 +2,7 @@ module.exports = (Promise, request, FormData, fs)->
     class CynnyChunkUploader
 
         _file: null
+        _fileSize: null
 
         _uploadToken: null
         _signedToken: null
@@ -13,16 +14,18 @@ module.exports = (Promise, request, FormData, fs)->
         _chunkIndex: null
 
         constructor: (params)->
-            @_storageUrl = params.storageUrl
+            @_storageUrl = params.storage_url
 
             @_file = params.file
-            @_uploadToken = params.uploadToken
-            @_signedToken = params.signedToken
+            @_fileSize = params.file_size
+
+            @_uploadToken = params.upload_token
+            @_signedToken = params.signed_token
             @_bucket = params.bucket
             @_object = params.object
 
-            @_chunkSize = params.chunkSize
-            @_chunkIndex = params.chunkIndex
+            @_chunkSize = params.chunk_size
+            @_chunkIndex = params.chunk_index
 
 
         upload: ()->
@@ -46,7 +49,7 @@ module.exports = (Promise, request, FormData, fs)->
                     resolve() # TODO: Check for errors and statusCodes
 
         _getReadStream: ()->
-            return fs.createReadStream(file, {start: @_chunkIndex * @_chunkSize, end: @_chunkIndex * @_chunkSize + @_chunkSize})
+            return fs.createReadStream(@_file, {start: @_chunkIndex * @_chunkSize, end: @_chunkIndex * @_chunkSize + @_chunkSize})
 
         _getRequestUrl: ()->
             return "#{@_storageUrl}/b/#{@_bucket}/o/#{@_object}/cnk/#{@_chunkIndex}"
