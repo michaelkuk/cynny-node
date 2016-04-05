@@ -46,7 +46,7 @@ module.exports = (Promise, request, FormData, fs, async)->
             @_xorIndex = @_index * @_parityStep
 
         upload: ()->
-            return @_getFileDescriptor().then(@_calculateParity.bind(@)).then(@_uploadForm.bind(@))
+            return @_getFileDescriptor().then(@_calculateParity.bind(@)).then(@_removeFileDescriptor.bind(@)).then(@_uploadForm.bind(@))
 
         destroy: ()->
             @_storageUrl = null
@@ -138,7 +138,7 @@ module.exports = (Promise, request, FormData, fs, async)->
 
         _getFileDescriptor: ()->
             return new Promise (resolve, reject)=>
-                fs.open @file, 'r', (err, fd)=>
+                fs.open @_file, 'r', (err, fd)=>
                     return reject(err) if err
                     @_fd = fd
                     return resolve()
