@@ -113,6 +113,7 @@ module.exports = (Promise, EventEmitter, async, request, crypto, fs, CynnyChunkU
                 signedToken: @_signedToken
                 bucket: @_bucket
                 object: @_object
+                chunkSize: @_chunkSize
 
             while c < @_totalChunks
                 @_uploadQueue.push(new CynnyChunkUploader(chunkParams, c))
@@ -127,6 +128,7 @@ module.exports = (Promise, EventEmitter, async, request, crypto, fs, CynnyChunkU
                 fileSize: @_fileSize
                 uploadToken: @_uploadToken
                 signedToken: @_signedToken
+                chunkSize: @_chunkSize
                 bucket: @_bucket
                 object: @_object
 

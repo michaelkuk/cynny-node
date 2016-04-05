@@ -73,7 +73,7 @@ module.exports = (Promise, request, FormData, fs)->
 
         _getReadStream: ()->
             start = @_chunkIndex * @_chunkSize
-            end = Math.min(@_chunkIndex * @_chunkSize + @_chunkSize, @_fileSize)
+            end = (Math.min(@_chunkIndex * @_chunkSize + @_chunkSize, @_fileSize)) - 1
             return fs.createReadStream(@_file, {start: start, end: end})
 
         _getRequestUrl: ()->
