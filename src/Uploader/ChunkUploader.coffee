@@ -13,31 +13,51 @@ module.exports = (Promise, request, FormData, fs)->
         _chunkSize: null
         _chunkIndex: null
 
-        constructor: (params)->
-            @_storageUrl = params.storage_url
+        constructor: (params, index)->
+            @_storageUrl = params.storageUrl
 
             @_file = params.file
-            @_fileSize = params.file_size
+            @_fileSize = params.fileSize
 
-            @_uploadToken = params.upload_token
-            @_signedToken = params.signed_token
+            @_uploadToken = params.uploadToken
+            @_signedToken = params.signedToken
             @_bucket = params.bucket
             @_object = params.object
 
-            @_chunkSize = params.chunk_size
-            @_chunkIndex = params.chunk_index
+            @_chunkSize = params.chunkSize
+            @_chunkIndex = index
 
 
         upload: ()->
             return @_crcStreamAdler32(@_getReadStream()).then(@_uploadForm.bind(@))
 
+        destroy: ()->
+            @_storageUrl = null
+
+            @_file = null
+            @_fileSize = null
+
+            @_uploadToken = null
+            @_signedToken = null
+            @_bucket = null
+            @_object = null
+
+            @_chunkSize = null
+            @_chunkIndex = null
+            return true
+
+
         _uploadForm: (crc)->
             return new Promise (resolve, reject)=>
 
-                fd = new FormData()
+                # fd = new FormData()
+                #
+                # fd.append('crc', crc)
+                # fd.append('chunk', @_getReadStream())
 
-                fd.append('crc', crc)
-                fd.append('chunk', @_getReadStream())
+                fd =
+                    'crc': crc
+                    'chunk': @_getReadStream()
 
                 requestOptions =
                     url: @_getRequestUrl()
@@ -46,10 +66,15 @@ module.exports = (Promise, request, FormData, fs)->
                         'x-cyn-uploadtoken': @_uploadToken
                     formData: fd
                 request.put requestOptions, (err, response)=>
+                    if err || response.statusCode > 399
+                        err ?= new Error(response.body)
+                        return reject(err)
                     resolve() # TODO: Check for errors and statusCodes
 
         _getReadStream: ()->
-            return fs.createReadStream(@_file, {start: @_chunkIndex * @_chunkSize, end: @_chunkIndex * @_chunkSize + @_chunkSize})
+            start = @_chunkIndex * @_chunkSize
+            end = Math.min(@_chunkIndex * @_chunkSize + @_chunkSize, @_fileSize)
+            return fs.createReadStream(@_file, {start: start, end: end})
 
         _getRequestUrl: ()->
             return "#{@_storageUrl}/b/#{@_bucket}/o/#{@_object}/cnk/#{@_chunkIndex}"

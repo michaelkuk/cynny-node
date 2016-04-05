@@ -14,7 +14,7 @@ module.exports = (Promise, request, FormData, fs, async)->
 
         _index: null
         _chunkSize: null
-        _chunks: null
+        _totalChunks: null
 
         _parityStep: null
         _xorData: null
@@ -24,29 +24,52 @@ module.exports = (Promise, request, FormData, fs, async)->
         _xorIndex: null
         _xorLength: null
 
-        constructor: (params)->
-            @_storageUrl = params.storage_url
+        constructor: (params, index)->
+            @_storageUrl = params.storageUrl
 
             @_file = params.file
-            @_fileSize = params.file_size
+            @_fileSize = params.fileSize
 
             @_object = params.object
             @_bucket = params.bucket
 
-            @_signedToken = params.signed_token
-            @_uploadToken = params.upload_token
+            @_signedToken = params.signedToken
+            @_uploadToken = params.uploadToken
 
-            @_chunkSize = params.chunk_size
-            @_chunkIndex = params.chunk_index
-            @_chunks = params.chunks
+            @_chunkSize = params.chunkSize
+            @_chunkIndex = index
 
-            @_parityStep = params.parity_step
+            @_totalChunks = params.totalChunks
+            @_parityStep = params.parityStep
 
             @_xorLength = Math.min((index + 1) * @_parityStep, @_chunks - 1)
             @_xorIndex = @_index * @_parityStep
 
         upload: ()->
             return @_getFileDescriptor().then(@_calculateParity.bind(@)).then(@_uploadForm.bind(@))
+
+        destroy: ()->
+            @_storageUrl = null
+
+            @_file = null
+            @_fileSize = null
+
+            @_object = null
+            @_bucket = null
+
+            @_signedToken = null
+            @_uploadToken = null
+
+            @_chunkSize = null
+            @_chunkIndex = null
+            @_chunks = null
+
+            @_parityStep = null
+
+
+            @_xorLength = null
+            @_xorIndex = null
+            return true
 
         _calculateParity: ()->
             return new Promise (resolve, reject)=>
@@ -66,7 +89,10 @@ module.exports = (Promise, request, FormData, fs, async)->
                         cb()
 
                 callback: (err)=>
-                    if err then reject(err) else resolve()
+                    if err
+                        reject(err)
+                    else
+                        @_removeFileDescriptor().then(resolve).catch(reject)
 
                 async.whilst(criteria, iterator, callback)
 
@@ -80,7 +106,7 @@ module.exports = (Promise, request, FormData, fs, async)->
                     i = 0
                     while i < arr.length
                         @_xorData[i] ^= arr[i]
-                        i++
+                        i += 1
 
                 return true
 
@@ -88,10 +114,14 @@ module.exports = (Promise, request, FormData, fs, async)->
         _uploadForm: ()->
             return new Promise (resolve, reject)=>
 
-                fd = new FormData()
+                # fd = new FormData()
+                #
+                # fd.append('crc', @_crcAdler32(@_xorData))
+                # fd.append('chunk', new Buffer(@_xorData))
 
-                fd.append('crc', @_crcAdler32(@_xorData))
-                fd.append('chunk', new Buffer(@_xorData))
+                fs =
+                    crc: @_crcAdler32(@_xorData)
+                    chunk: new Buffer(@_xorData)
 
                 requestOptions =
                     url: @_getRequestUrl()
@@ -101,6 +131,9 @@ module.exports = (Promise, request, FormData, fs, async)->
                     formData: fd
 
                 request.put requestOptions, (err, response)=>
+                    if err || response.statusCode > 399
+                        err ?= new Error(response.body)
+                        return reject(err)
                     resolve() # TODO: Check for errors and statusCodes
 
         _getFileDescriptor: ()->
@@ -109,6 +142,13 @@ module.exports = (Promise, request, FormData, fs, async)->
                     return reject(err) if err
                     @_fd = fd
                     return resolve()
+
+        _removeFileDescriptor: ()->
+            return new Promise (resolve, reject)=>
+                fs.close @_fd, (err)=>
+                    return reject(err) if err
+                    @_fd = null
+                    resolve()
 
         _readFile: (start, end)->
             return new Promise (resolve, reject)=>
