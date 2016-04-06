@@ -5,4 +5,4 @@
 require('coffee-script/register');
 
 // Export the Cynny Node Module
-module.exports = require();
+module.exports = require('./src/bootstrap');
