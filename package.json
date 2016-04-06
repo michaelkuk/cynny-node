@@ -10,7 +10,7 @@
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/zetta-michaelkuk/cynny-node.git"
+        "url": "git+git@github.com:zetta-michaelkuk/cynny-node.git"
     },
     "dependencies": {
         "async": "^2.0.0-rc.2",
