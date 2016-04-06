@@ -1,4 +1,4 @@
-module.exports = (Promise, EventEmitter, request, crypto, async, CynnyFileWriter)->
+module.exports = (Promise, EventEmitter, request, async, CynnyFileWriter)->
     class CynnyDownloader extends EventEmitter
 
         _storageUrl: null
@@ -23,13 +23,9 @@ module.exports = (Promise, EventEmitter, request, crypto, async, CynnyFileWriter
         constructor: (params={})->
             super()
 
-            required = ['storageUrl', 'object', 'bucket', 'file', 'signedToken', 'downloadToken']
+            required = ['storageUrl', 'object', 'bucket', 'file', 'signedToken']
             @_processParams(params, required)
-
-            @_streamMd5 = crypto.createHash('md5').setEncoding('hex')
-
-            @_hiddenFile = "#{path.dirname(@_file)}/.#{path.basename(@_file)}"
-            @_verifyChecksum: if params.hasOwnProperty('verifyChecksum') then params.verifyChecksum else false
+            @_verifyChecksum = if params.hasOwnProperty('verifyChecksum') then params.verifyChecksum else false
 
         _processParams: (params, required)->
             keys = Object.keys(params)
@@ -42,7 +38,8 @@ module.exports = (Promise, EventEmitter, request, crypto, async, CynnyFileWriter
 
         download: ()->
             @_currentChunk = 0
-            return @_getObjectInfo().then(@_performDownload.bind(@)).then(@_finalizeFile.bind(@)).then(@_verifyChecksum.bind(@))
+            @_fileInstance = new CynnyFileWriter(@_file)
+            return @_getObjectInfo().then(@_performDownload.bind(@)).then(@_finalizeFile.bind(@)).then(@_doVerifyChecksum.bind(@))
 
         _getObjectInfo: ()->
             return new Promise (resolve, reject)=>
@@ -59,6 +56,7 @@ module.exports = (Promise, EventEmitter, request, crypto, async, CynnyFileWriter
                     @_downloadToken = data.downloadToken
                     @_expectedMd5 = data.md5Encoding
                     @_totalChunks = Math.ceil(data.size / data.chunkSize)
+                    resolve()
 
         _progress: ()->
             currentProgress = Math.floor(@_currentChunk / @_totalChunks * 100)
@@ -70,7 +68,7 @@ module.exports = (Promise, EventEmitter, request, crypto, async, CynnyFileWriter
                 criteria = ()=>
                     return @_currentChunk < @_totalChunks
 
-                iterator: (cb)=>
+                iterator = (cb)=>
                     requestOptions =
                         uri: "#{@_storageUrl}/b/#{@_bucket}/o/#{@_object}/cnk/#{@_currentChunk}"
                         headers:
@@ -87,12 +85,14 @@ module.exports = (Promise, EventEmitter, request, crypto, async, CynnyFileWriter
                             @_fileInstance.write(body)
                             cb()
 
-                callback: (err)=>
+                callback = (err)=>
                     if err then return reject(err) else resolve()
+
+                async.whilst(criteria, iterator, callback)
 
         _finalizeFile: ()->
             return @_fileInstance.finalize()
 
-        _verifyChecksum: ()->
+        _doVerifyChecksum: ()->
             throw new Error("Checksum mismatch") if @_expectedMd5 != @_fileInstance.getChecksum()
             return true

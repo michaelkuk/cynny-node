@@ -16,7 +16,7 @@ module.exports = (Promise, fs, path, crypto)->
             @_tempFile = "#{path.dirname(@_file)}/.#{path.basename(@_file)}"
             @_ws = fs.createWriteStream(@_tempFile, {flags: 'wx'})
 
-            @_hashType = if @_hash then crypto.createHash(@_hashType) else false
+            @_hash = if @_hashType then crypto.createHash(@_hashType) else false
 
             @_finalized = false
 
@@ -39,13 +39,12 @@ module.exports = (Promise, fs, path, crypto)->
             return new Promise (resolve, reject)=>
                 @_ws.once 'finish', ()=>
                     @_ws = null
-                    fs.rename @_tempFile, @_file, (err)=>
-                        @_finalized = true
-                        if err then reject(err) else resolve()
+                    resolve()
                 @_ws.end()
 
         _finishHash: ()->
             @_hashValue = @_hash.digest('hex') if @_hash
+            @_finalized = true
             return true
 
         _moveFile: ()->
