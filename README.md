@@ -3,7 +3,7 @@ NodeJS Cynny Onject Storage Client
 
 **Installation:**
 ```
-npm install "git+https://github.com/zetta-michaelkuk/cynny-node.git" --save
+npm install cynny-node --save
 ```
 ## cynny.Upload
 
