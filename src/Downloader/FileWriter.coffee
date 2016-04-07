@@ -14,15 +14,14 @@ module.exports = (Promise, fs, path, crypto)->
 
         constructor: (@_file, @_hashType='md5')->
             @_tempFile = "#{path.dirname(@_file)}/.#{path.basename(@_file)}"
-            @_ws = fs.createWriteStream(@_tempFile, {flags: 'wx'})
+            @_ws = fs.createWriteStream(@_tempFile, {flags: 'wx', defaultEncoding: 'bin'})
 
             @_hash = if @_hashType then crypto.createHash(@_hashType) else false
 
             @_finalized = false
 
         write: (data)->
-            @_ws.write data, ()=>
-                data = null
+            @_ws.write(data)
             @_hash.update(data) if @_hash
             return true
 

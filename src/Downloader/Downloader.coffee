@@ -75,15 +75,19 @@ module.exports = (Promise, EventEmitter, request, async, CynnyFileWriter)->
                             'x-cyn-signedtoken': @_signedToken
                             'x-cyn-downloadtoken': @_downloadToken
 
-                    request.get requestOptions, (err, response, body)=>
+                    req = request.get(requestOptions)
+
+                    req.on 'error', (err)=>
                         # TODO: Implement download retries in the future
+                        return cb(err || response.statusCode)
+
+                    req.on 'end', ()=>
                         @_currentChunk += 1
                         @_progress()
-                        if err || response.statusCode != 200
-                            return cb(err || response.statusCode)
-                        else
-                            @_fileInstance.write(body)
-                            cb()
+                        cb()
+
+                    req.on 'data', (chunk)=>
+                        @_fileInstance.write(chunk)
 
                 callback = (err)=>
                     if err then return reject(err) else resolve()
