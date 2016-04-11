@@ -25,12 +25,6 @@ module.exports = (Promise, fs, path, crypto)->
             @_hash.update(data) if @_hash
             return true
 
-        getChecksum: ()->
-            throw new Error("Writestream has not been finalized yet") unless @_finalized
-            throw new Error("Hashing disabled") unless @_hash
-
-            return @_hashValue
-
         finalize: ()->
             return @_closeStream().then(@_finishHash.bind(@)).then(@_moveFile.bind(@))
 
@@ -45,6 +39,13 @@ module.exports = (Promise, fs, path, crypto)->
             @_hashValue = @_hash.digest('hex') if @_hash
             @_finalized = true
             return true
+
+        verifyChecksum: (expected)->
+            throw new Error('Not finalized') unless @_finalized
+
+            return true unless @_hash
+
+            return expected == @_hashValue
 
         _moveFile: ()->
             return new Promise (resolve, reject)=>

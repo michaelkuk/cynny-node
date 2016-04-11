@@ -1,4 +1,4 @@
-module.exports = (Promise, EventEmitter, request, async, CynnyFileWriter)->
+module.exports = (Promise, EventEmitter, request, async, CynnyFileWriter, CynnyStreamWriter)->
     class CynnyDownloader extends EventEmitter
 
         _storageUrl: null
@@ -13,6 +13,8 @@ module.exports = (Promise, EventEmitter, request, async, CynnyFileWriter)->
         _expectedMd5: null
         _verifyChecksum: null
 
+        _fileSize: null
+        _fileName: null
         _totalChunks: null
         _currentChunk: null
 
@@ -38,10 +40,10 @@ module.exports = (Promise, EventEmitter, request, async, CynnyFileWriter)->
 
         download: ()->
             @_currentChunk = 0
-            @_fileInstance = new CynnyFileWriter(@_file)
-            return @_getObjectInfo().then(@_performDownload.bind(@)).then(@_finalizeFile.bind(@)).then(@_doVerifyChecksum.bind(@))
+            @_fileInstance = if typeof @_file == 'string' then new CynnyFileWriter(@_file) else new CynnyStreamWriter(@_file)
+            return @getObjectInfo().then(@_performDownload.bind(@)).then(@_finalizeFile.bind(@)).then(@_doVerifyChecksum.bind(@))
 
-        _getObjectInfo: ()->
+        getObjectInfo: ()->
             return new Promise (resolve, reject)=>
                 requestOptions =
                     uri: "#{@_storageUrl}/b/#{@_bucket}/o/#{@_object}"
@@ -50,11 +52,17 @@ module.exports = (Promise, EventEmitter, request, async, CynnyFileWriter)->
 
                 request.get requestOptions, (err, response, body)=>
                     return reject(err) if err
+                    if response.statusCode != 200
+                        err = {status: response.statusCode}
+                        return reject(err)
+
 
                     data = if typeof body == 'string' then JSON.parse(body).data else body.data
 
                     @_downloadToken = data.downloadToken
                     @_expectedMd5 = data.md5Encoding
+                    @_fileSize    = data.size
+                    @_fileName    = data.name
                     @_totalChunks = Math.ceil(data.size / data.chunkSize)
                     resolve()
 
@@ -98,5 +106,5 @@ module.exports = (Promise, EventEmitter, request, async, CynnyFileWriter)->
             return @_fileInstance.finalize()
 
         _doVerifyChecksum: ()->
-            throw new Error("Checksum mismatch") if @_expectedMd5 != @_fileInstance.getChecksum()
+            throw new Error("Checksum mismatch") unless @_fileInstance.verifyChecksum(@_expectedMd5)
             return true
