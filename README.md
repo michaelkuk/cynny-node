@@ -58,7 +58,7 @@ var options = {
     storageUrl: 'http://cy0.cynnylanspace.com',
     bucket: 'Welcome',
     object: 'someFile.txt',
-    file: '/abs/path/to/a/someFile.txt',
+    file: '/abs/path/to/a/someFile.txt', // Can be a writable stream instance 
     signedToken: 'cynnySignedToken'
 };
 
